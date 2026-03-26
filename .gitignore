@@ -1,0 +1,32 @@
+# Dependencies
+venv/
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+
+# Uploads and outputs (user data)
+uploads/
+outputs/
+
+# Data (too large for git)
+data/raw/
+data/processed/
+data/models/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+frontend/dist/
+
+# Environment
+.env
+*.log
