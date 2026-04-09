@@ -5,14 +5,11 @@ __pycache__/
 *.pyc
 *.pyo
 
-# Uploads and outputs (user data)
+# Uploads (user data)
 uploads/
-outputs/
 
-# Data (too large for git)
-data/raw/
-data/processed/
-data/models/
+# Submission zip (too large for git)
+*.zip
 
 # IDE
 .vscode/
