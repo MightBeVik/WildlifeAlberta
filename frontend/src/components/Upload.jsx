@@ -55,13 +55,14 @@ export default function Upload({ onProcessed, addToast }) {
 
       try {
         const result = await api.processImage(updated[i].file, confidence);
+        const comparedModels = result.comparisons?.detectorOrder?.length || 1;
         updated[i].status = 'done';
         updated[i].result = result;
         onProcessed(result);
         addToast(
           result.detection.has_animal
-            ? `${result.classification?.classifications?.length || 0} animal(s) detected in ${updated[i].file.name}`
-            : `No animals in ${updated[i].file.name} (background frame)`,
+            ? `${result.classification?.classifications?.length || 0} animal(s) detected in ${updated[i].file.name} across ${comparedModels} detector${comparedModels !== 1 ? 's' : ''}`
+            : `No animals in ${updated[i].file.name} across ${comparedModels} detector${comparedModels !== 1 ? 's' : ''}`,
           result.detection.has_animal ? 'success' : 'info'
         );
       } catch (err) {
@@ -94,7 +95,7 @@ export default function Upload({ onProcessed, addToast }) {
       <div className="page-header">
         <h1 className="page-title">Upload Camera Trap Images</h1>
         <p className="page-description">
-          Drag and drop or browse to upload wildlife camera trap images for automated detection and classification.
+          Drag and drop or browse to upload wildlife camera trap images for automated multi-model detection and classification.
         </p>
       </div>
 
@@ -184,7 +185,7 @@ export default function Upload({ onProcessed, addToast }) {
                 {f.status === 'done' && (
                   <div className="file-status done">
                     {f.result?.detection?.has_animal
-                      ? `${f.result.classification?.classifications?.length || 0} animal(s)`
+                      ? `${f.result.classification?.classifications?.length || 0} animal(s) • ${f.result?.comparisons?.detectorOrder?.length || 1} model(s)`
                       : 'No animals'}
                   </div>
                 )}

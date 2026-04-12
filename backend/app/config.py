@@ -18,6 +18,15 @@ PREDICTIONS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Model configuration
 MEGADETECTOR_MODEL = os.getenv("MEGADETECTOR_MODEL", "yolov5s")  # Default to yolov5s
+GENERIC_YOLO_WEIGHTS = os.getenv("GENERIC_YOLO_WEIGHTS", "yolov5su.pt")
+MEGADETECTOR_WEIGHTS = os.getenv(
+    "MEGADETECTOR_WEIGHTS",
+    str(MODELS_DIR / "megadetector_v5.pt"),
+)
+CAMERA_TRAP_DETECTOR_WEIGHTS = os.getenv(
+    "CAMERA_TRAP_DETECTOR_WEIGHTS",
+    str(MODELS_DIR / "camera_trap_yolo.pt"),
+)
 CONFIDENCE_THRESHOLD = float(os.getenv("CONFIDENCE_THRESHOLD", "0.3"))
 IOU_THRESHOLD = float(os.getenv("IOU_THRESHOLD", "0.45"))
 

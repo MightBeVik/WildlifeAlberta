@@ -47,9 +47,9 @@ export const api = {
   /**
    * Run detection on an image.
    */
-  async detectAnimals(imageId, confidence = 0.3) {
+  async detectAnimals(imageId, confidence = 0.3, models = 'all') {
     const res = await fetch(
-      `${API_BASE}/api/detect/${imageId}?confidence=${confidence}`,
+      `${API_BASE}/api/detect/${imageId}?confidence=${confidence}&models=${encodeURIComponent(models)}`,
       { method: 'POST' }
     );
     if (!res.ok) throw new Error('Detection failed');
@@ -59,8 +59,8 @@ export const api = {
   /**
    * Run species classification on an image (requires detection first).
    */
-  async classifySpecies(imageId) {
-    const res = await fetch(`${API_BASE}/api/classify/${imageId}`, {
+  async classifySpecies(imageId, detectorKey = 'primary') {
+    const res = await fetch(`${API_BASE}/api/classify/${imageId}?detector_key=${encodeURIComponent(detectorKey)}`, {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Classification failed');
@@ -117,13 +117,56 @@ export const api = {
   /**
    * Full pipeline: upload → detect → classify
    */
-  async processImage(file, confidence = 0.3) {
+  async processImage(file, confidence = 0.3, models = 'all') {
     const upload = await this.uploadImage(file);
-    const detection = await this.detectAnimals(upload.image_id, confidence);
-    let classification = null;
-    if (detection.has_animal) {
-      classification = await this.classifySpecies(upload.image_id);
+    const detection = await this.detectAnimals(upload.image_id, confidence, models);
+    const detectionsByModel = detection.by_detector || {
+      [detection.primary_detector || detection.detector_key || 'primary']: detection,
+    };
+    const detectorOrder = detection.detector_order || Object.keys(detectionsByModel);
+    const availableDetectors = detection.available_detectors || [];
+    const classificationsByModel = {};
+    const classificationErrors = {};
+
+    const runs = await Promise.allSettled(
+      detectorOrder
+        .filter(detectorKey => detectionsByModel[detectorKey]?.has_animal)
+        .map(async detectorKey => {
+          const classification = await this.classifySpecies(upload.image_id, detectorKey);
+          return [detectorKey, classification];
+        })
+    );
+
+    runs.forEach(result => {
+      if (result.status === 'fulfilled') {
+        const [detectorKey, classification] = result.value;
+        classificationsByModel[detectorKey] = classification;
+        return;
+      }
+
+      classificationErrors.unknown = result.reason?.message || 'Classification failed';
+    });
+
+    const primaryDetector = detection.primary_detector || detectorOrder[0];
+    let classification = classificationsByModel[primaryDetector] || null;
+
+    if (!classification && detection.has_animal) {
+      classification = await this.classifySpecies(upload.image_id, primaryDetector);
+      classificationsByModel[primaryDetector] = classification;
     }
-    return { upload, detection, classification };
+
+    return {
+      upload,
+      detection,
+      classification,
+      comparisons: {
+        primaryDetector,
+        detectorOrder,
+        detectionsByModel,
+        classificationsByModel,
+        availableDetectors,
+        classificationErrors,
+      },
+    };
   },
 };

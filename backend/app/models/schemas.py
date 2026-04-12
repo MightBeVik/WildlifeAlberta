@@ -1,7 +1,5 @@
-"""
-Pydantic schemas for API request/response models.
-"""
-from pydantic import BaseModel
+"""Pydantic schemas for API request/response models."""
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 from datetime import datetime
 
@@ -67,6 +65,8 @@ class ImageInfo(BaseModel):
 
 
 class StatsResponse(BaseModel):
+    model_config = ConfigDict(protected_namespaces=())
+
     total_images: int
     total_detections: int
     species_counts: dict
