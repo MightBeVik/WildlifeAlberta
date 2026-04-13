@@ -84,6 +84,7 @@ async def health_check():
             "classifier_loaded": classifier.is_loaded,
             "version": "1.0.0",
             "mode": "production" if (detector.is_loaded and classifier.is_loaded) else "demo",
+            "available_detectors": detector.list_available_detectors(),
         }
     except Exception:
         return {
@@ -92,6 +93,7 @@ async def health_check():
             "classifier_loaded": False,
             "version": "1.0.0",
             "mode": "demo",
+            "available_detectors": [],
         }
 
 
@@ -112,7 +114,8 @@ async def startup_event():
     classifier = get_classifier()
 
     if detector.is_loaded:
-        logger.info("✓ Detector model loaded (YOLOv5)")
+        loaded = [item["label"] for item in detector.list_available_detectors() if item["mode"] == "real"]
+        logger.info("✓ Loaded detectors: %s", ", ".join(loaded))
     else:
         logger.info("⚠ Detector running in MOCK mode")
 

@@ -1,15 +1,11 @@
-"""
-Detection router — runs MegaDetector on uploaded images.
-"""
+"""Detection router — runs one or more detector models on uploaded images."""
 from pathlib import Path
 from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 
-from app.config import UPLOAD_DIR, CONFIDENCE_THRESHOLD
+from app.config import CONFIDENCE_THRESHOLD
 from app.services.detector import get_detector
-from app.services.preprocessor import load_image
-from app.models.schemas import Detection
 from app.routers.upload import get_uploaded_images
 
 router = APIRouter(prefix="/api", tags=["detection"])
@@ -22,6 +18,7 @@ detection_results: dict = {}
 async def detect_animals(
     image_id: str,
     confidence: float = Query(default=CONFIDENCE_THRESHOLD, ge=0.1, le=1.0),
+    models: str = Query(default="all"),
 ):
     """Run animal detection on a specific uploaded image."""
     images = get_uploaded_images()
@@ -34,18 +31,26 @@ async def detect_animals(
     if not Path(filepath).exists():
         raise HTTPException(status_code=404, detail="Image file not found on disk")
 
-    # Run detection
     detector = get_detector()
-    result = detector.detect(filepath, confidence=confidence)
+    model_bundle = detector.detect_all(filepath, confidence=confidence, detector_keys=models)
+    primary_key = model_bundle["primary_detector"]
+    primary_result = model_bundle["by_detector"][primary_key]
 
-    # Store result
     detection_data = {
         "image_id": image_id,
         "filename": image_info["filename"],
         "image_url": f"/uploads/{image_info['saved_as']}",
-        "detections": result["detections"],
-        "has_animal": result["has_animal"],
-        "processing_time_ms": result["processing_time_ms"],
+        "detections": primary_result["detections"],
+        "has_animal": primary_result["has_animal"],
+        "processing_time_ms": primary_result["processing_time_ms"],
+        "detector_key": primary_result["detector_key"],
+        "detector_label": primary_result["detector_label"],
+        "detector_mode": primary_result["detector_mode"],
+        "primary_detector": primary_key,
+        "detector_order": model_bundle["detector_order"],
+        "available_detectors": model_bundle["available_detectors"],
+        "by_detector": model_bundle["by_detector"],
+        "comparisons": list(model_bundle["by_detector"].values()),
         "timestamp": datetime.now().isoformat(),
         "width": image_info["width"],
         "height": image_info["height"],
@@ -58,6 +63,7 @@ async def detect_animals(
 @router.post("/detect/batch")
 async def detect_batch(
     confidence: float = Query(default=CONFIDENCE_THRESHOLD, ge=0.1, le=1.0),
+    models: str = Query(default="all"),
 ):
     """Run detection on all uploaded images that haven't been processed yet."""
     images = get_uploaded_images()
@@ -66,7 +72,7 @@ async def detect_batch(
     for image_id in images:
         if image_id not in detection_results:
             try:
-                result = await detect_animals(image_id, confidence)
+                result = await detect_animals(image_id, confidence, models)
                 results.append(result)
             except Exception as e:
                 results.append({"image_id": image_id, "error": str(e)})
